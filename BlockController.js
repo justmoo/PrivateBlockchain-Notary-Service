@@ -40,6 +40,8 @@ class BlockController {
             //code
             //takes an address from req.body.address
             //then gives a message to verifiy 
+            if(this.mempool.length<=0){
+                //if the mempool is empty adds it right away
             var requestTime = new Date().getTime().toString().slice(0,-3);
             var newRq = new Request.Request();
 
@@ -48,9 +50,59 @@ class BlockController {
             newRq.message = `${req.body.address}:${requestTime}:starRegistry`;
             newRq.validationWindow = 300;
             this.mempool.push(newRq);
-            res.json(newRq);
+            return res.json(newRq);
 
-        });
+
+            }else{
+                //if the mempool has requests it looks for the address and chnage the validation window 
+            for(var i=0 ;i<this.mempool.length;i++){
+                if(this.mempool[i].walletAddress=req.body.address){
+                    var requestTime = new Date().getTime().toString().slice(0,-3);
+                     let rq =this.mempool[i];
+
+                     rq.validationWindow = 300 - (requestTime - rq.requestTimeStamp)
+                     if(rq.validationWindow <= 0){
+                         // if the request is 5mins old replace it with a new one with a new message
+                         // remove the old one
+                         this.mempool.splice(i,1);
+                         // adds it to the timeoutRequest
+                         this.timeoutRequests.push(rq);
+                        var requestTime = new Date().getTime().toString().slice(0,-3);
+                        var newRq = new Request.Request();
+                        // give the new Request the data
+                        newRq.requestTimeStamp = requestTime;
+                        newRq.walletAddress = req.body.address;
+                        newRq.message = `${req.body.address}:${requestTime}:starRegistry`;
+                        newRq.validationWindow = 300;
+                        this.mempool.push(newRq);
+                        return res.json(newRq);
+                     }
+                     return res.send(rq);
+
+                }else{
+                    var requestTime = new Date().getTime().toString().slice(0,-3);
+                    var newRq = new Request.Request();
+
+                    newRq.requestTimeStamp = requestTime;
+                    newRq.walletAddress = req.body.address;
+                    newRq.message = `${req.body.address}:${requestTime}:starRegistry`;
+                    newRq.validationWindow = 300;
+                    this.mempool.push(newRq);
+                    return res.json(newRq);
+
+                }
+            }
+           
+            // var newRq = new Request.Request();
+
+            // newRq.requestTimeStamp = requestTime;
+            // newRq.walletAddress = req.body.address;
+            // newRq.message = `${req.body.address}:${requestTime}:starRegistry`;
+            // newRq.validationWindow = 300;
+            // this.mempool.push(newRq);
+            // res.json(newRq);
+
+            }});
     }
     validateAddess(){
         
@@ -212,12 +264,18 @@ class BlockController {
     postNewBlock() {
         this.app.post("/block", async(req, res) => {
             try{
-            if(req.body.address == null|| req.body.star==null){
+            if(req.body.address == null|| req.body.star==null ){
                return res.send("can't send an empty block");
             }else{
                 for(var i=0; i<this.mempool.length;i++){
+
+                   
+                    if(req.body.address == this.mempool[i].address){
+                       return res.send('validte first')
+                    }
+                    if(this.mempool[i].status != null){
                     if(req.body.address == this.mempool[i].status.address){
-                        
+                       
                         // encode star
                         // add the block to the blockchain 
                         // removes the validRequest from mempool
@@ -236,7 +294,7 @@ class BlockController {
                         this.mempool.splice(i,1);
                       return res.json(newBlock);
                     }
-                     
+                }
                     
                 }
                  return res.send("we couldn't find the ValidRequest");
